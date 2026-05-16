@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ProductStatus {
+  active
+  inactive
+}
+
+enum InquiryStatus {
+  new
+  contacted
+  closed
+}
+
+enum GalleryType {
+  image
+  video
+}
+
+model Product {
+  id             String        @id @default(uuid())
+  name           String
+  slug           String        @unique
+  description    String
+  material       String
+  dimensions     String?       // e.g., "30cm x 20cm x 15cm"
+  weight         String?       // e.g., "2.5 kg"
+  minPrice       Int?          // Price in cents/smallest currency unit
+  maxPrice       Int?          // Price range for variable sizes
+  moq            Int           @default(100) // Minimum Order Quantity
+  leadTime       String        @default("2-3 weeks")
+  finishing      String[]      // ["Polished", "Brushed", "Antique"]
+  certifications String[]      // ["Food Grade", "ISO 9001"]
+  origin         String        @default("Indonesia")
+  isCustomizable Boolean       @default(false)
+  isFeatured     Boolean       @default(false)
+  status         ProductStatus @default(active)
+  categoryId    String
+  category       Category      @relation(fields: [categoryId], references: [id])
+  images         ProductImage[]
+  inquiries      Inquiry[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+
+  @@index([slug])
+  @@index([categoryId])
+  @@index([status])
+  @@index([isFeatured])
+  @@index([deletedAt])
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  name      String
+  slug      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+}
+
+model ProductImage {
+  id         String   @id @default(uuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url        String
+  publicId   String
+  isPrimary  Boolean  @default(false)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([productId])
+}
+
+model Inquiry {
+  id        String        @id @default(uuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String
+  productId String?
+  product   Product?      @relation(fields: [productId], references: [id])
+  country   String?
+  company   String?
+  status    InquiryStatus @default(new)
+  createdAt DateTime      @default(now())
+
+  @@index([productId])
+  @@index([status])
+  @@index([email])
+}
+
+model Gallery {
+  id        String      @id @default(uuid())
+  type      GalleryType
+  url       String
+  publicId  String
+  thumbnail String?
+  title     String?
+  createdAt DateTime    @default(now())
+}
+
+// Testimonials from international clients
+model Testimonial {
+  id        String   @id @default(uuid())
+  name      String
+  company   String
+  country   String
+  content   String   @db.Text
+  rating    Int      @default(5)
+  isActive  Boolean  @default(true)
+  imageUrl  String?  // Optional client photo/logo
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Company/Website settings
+model SiteSettings {
+  id            String   @id @default(uuid())
+  companyName   String   @default("Ilavioo Copper")
+  tagline       String?  @default("Premium Copper & Brass Craftsmanship Since 1990")
+  address       String?
+  phone         String?
+  email         String?
+  whatsapp      String?
+  facebook      String?
+  instagram     String?
+  linkedin      String?
+  aboutUs       String?  @db.Text
+  privacyPolicy String?  @db.Text
+  termsOfService String? @db.Text
+  updatedAt     DateTime @updatedAt
+}
