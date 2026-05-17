@@ -14,10 +14,8 @@ const {
   productCreateSchema,
   productUpdateSchema,
 } = require("../validation/schemas");
-const csrfProtection = require("../middleware/csrfProtection");
 
 const adminRouter = express.Router();
-adminRouter.use(csrfProtection);
 adminRouter.use(authenticate);
 
 adminRouter.post("/", validateBody(productCreateSchema), createProduct);

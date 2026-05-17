@@ -4,15 +4,11 @@ const { createCategory, getAllCategories, updateCategory, deleteCategory } = req
 const { authenticate } = require('../middleware/authMiddleware');
 const { validateBody } = require('../middleware/validationMiddleware');
 const { categoryCreateSchema } = require('../validation/schemas');
-const csrfProtection = require('../middleware/csrfProtection');
 
-// Protected routes - only authenticated admin can create categories
-router.post('/', csrfProtection, authenticate, validateBody(categoryCreateSchema), createCategory);
-
-// Public routes
+// Protected routes - only authenticated admin can manage categories
+router.post('/', authenticate, validateBody(categoryCreateSchema), createCategory);
 router.get('/', getAllCategories);
-
-router.put('/:id', authenticate, csrfProtection, validateBody(categoryCreateSchema), updateCategory);
-router.delete('/:id', authenticate, csrfProtection, deleteCategory);
+router.put('/:id', authenticate, validateBody(categoryCreateSchema), updateCategory);
+router.delete('/:id', authenticate, deleteCategory);
 
 module.exports = router;
