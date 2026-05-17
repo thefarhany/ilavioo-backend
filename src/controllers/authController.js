@@ -3,6 +3,16 @@ const { supabase } = require("../config/supabase");
 const { successResponse, errorResponse } = require("../utils/responseHelper");
 const asyncHandler = require('../middleware/asyncHandler');
 
+// Cookie config: lax+http on localhost, none+https on production
+const getCookieConfig = (req) => {
+  const origin = req.headers.origin || '';
+  const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
+  return {
+    secure: !isLocalhost,
+    sameSite: isLocalhost ? 'lax' : 'none',
+  };
+};
+
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -13,25 +23,28 @@ const login = asyncHandler(async (req, res) => {
     return res
       .status(401)
       .json(errorResponse("Invalid credentials", error.message, 401));
+
+  const { secure, sameSite } = getCookieConfig(req);
+
   res.cookie("access_token", data.session.access_token, {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure,
+    sameSite,
     path: "/",
     maxAge: 1000 * 60 * 60 * 24 * 7,
   });
   res.cookie("refresh_token", data.session.refresh_token, {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure,
+    sameSite,
     path: "/",
     maxAge: 1000 * 60 * 60 * 24 * 7,
   });
   const csrfToken = crypto.randomBytes(24).toString('hex');
   res.cookie('csrf_token', csrfToken, {
     httpOnly: false,
-    secure: true,
-    sameSite: 'none',
+    secure,
+    sameSite,
     path: '/',
     maxAge: 1000 * 60 * 60 * 24 * 7,
   });
@@ -40,9 +53,10 @@ const login = asyncHandler(async (req, res) => {
 
 const logout = asyncHandler(async (req, res) => {
   await supabase.auth.signOut();
-  res.clearCookie("access_token", { path: "/", sameSite: "none", secure: true });
-  res.clearCookie("refresh_token", { path: "/", sameSite: "none", secure: true });
-  res.clearCookie("csrf_token", { path: "/", sameSite: "none", secure: true });
+  const { secure, sameSite } = getCookieConfig(req);
+  res.clearCookie("access_token", { path: "/", sameSite, secure });
+  res.clearCookie("refresh_token", { path: "/", sameSite, secure });
+  res.clearCookie("csrf_token", { path: "/", sameSite, secure });
   res.json(successResponse({}, "Logout successful"));
 });
 
@@ -103,18 +117,20 @@ const refresh = asyncHandler(async (req, res) => {
         .json(errorResponse("Session expired", data.error?.message || "", 401));
     }
 
+    const { secure, sameSite } = getCookieConfig(req);
+
     res.cookie("access_token", data.access_token, {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      secure,
+      sameSite,
       path: "/",
       maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
     res.cookie("refresh_token", data.refresh_token, {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      secure,
+      sameSite,
       path: "/",
       maxAge: 1000 * 60 * 60 * 24 * 7,
     });
@@ -122,17 +138,18 @@ const refresh = asyncHandler(async (req, res) => {
     const csrfToken = crypto.randomBytes(24).toString("hex");
     res.cookie("csrf_token", csrfToken, {
       httpOnly: false,
-      secure: true,
-      sameSite: "none",
+      secure,
+      sameSite,
       path: "/",
       maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
     res.json(successResponse({ user: data.user }, "Token refreshed"));
   } catch (err) {
-    res.clearCookie("access_token", { path: "/", sameSite: "none", secure: true });
-    res.clearCookie("refresh_token", { path: "/", sameSite: "none", secure: true });
-    res.clearCookie("csrf_token", { path: "/", sameSite: "none", secure: true });
+    const { secure, sameSite } = getCookieConfig(req);
+    res.clearCookie("access_token", { path: "/", sameSite, secure });
+    res.clearCookie("refresh_token", { path: "/", sameSite, secure });
+    res.clearCookie("csrf_token", { path: "/", sameSite, secure });
     return res.status(500).json(errorResponse("Refresh failed", err.message, 500));
   }
 });
