@@ -20,6 +20,13 @@ const login = asyncHandler(async (req, res) => {
     path: "/",
     maxAge: 1000 * 60 * 60 * 24 * 7,
   });
+  res.cookie("refresh_token", data.session.refresh_token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 1000 * 60 * 60 * 24 * 7,
+  });
   const csrfToken = crypto.randomBytes(24).toString('hex');
   res.cookie('csrf_token', csrfToken, {
     httpOnly: false,
@@ -34,6 +41,7 @@ const login = asyncHandler(async (req, res) => {
 const logout = asyncHandler(async (req, res) => {
   await supabase.auth.signOut();
   res.clearCookie("access_token");
+  res.clearCookie("refresh_token");
   res.clearCookie("csrf_token");
   res.json(successResponse({}, "Logout successful"));
 });
@@ -62,4 +70,71 @@ const me = asyncHandler(async (req, res) => {
   res.json(successResponse({ user: data.user }, "User authenticated"));
 });
 
-module.exports = { login, logout, me };
+const refresh = asyncHandler(async (req, res) => {
+  const refreshToken = req.cookies.refresh_token;
+
+  if (!refreshToken) {
+    res.clearCookie("access_token");
+    res.clearCookie("csrf_token");
+    return res.status(401).json(errorResponse("No refresh token", {}, 401));
+  }
+
+  try {
+    const response = await fetch(
+      `${process.env.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: process.env.SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || data.error) {
+      res.clearCookie("access_token");
+      res.clearCookie("refresh_token");
+      res.clearCookie("csrf_token");
+      return res
+        .status(401)
+        .json(errorResponse("Session expired", data.error?.message || "", 401));
+    }
+
+    res.cookie("access_token", data.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    });
+
+    res.cookie("refresh_token", data.refresh_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    });
+
+    const csrfToken = crypto.randomBytes(24).toString("hex");
+    res.cookie("csrf_token", csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    });
+
+    res.json(successResponse({ user: data.user }, "Token refreshed"));
+  } catch (err) {
+    res.clearCookie("access_token");
+    res.clearCookie("refresh_token");
+    res.clearCookie("csrf_token");
+    return res.status(500).json(errorResponse("Refresh failed", err.message, 500));
+  }
+});
+
+module.exports = { login, logout, me, refresh };
