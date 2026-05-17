@@ -15,23 +15,23 @@ const login = asyncHandler(async (req, res) => {
       .json(errorResponse("Invalid credentials", error.message, 401));
   res.cookie("access_token", data.session.access_token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: true,
+    sameSite: "none",
     path: "/",
     maxAge: 1000 * 60 * 60 * 24 * 7,
   });
   res.cookie("refresh_token", data.session.refresh_token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: true,
+    sameSite: "none",
     path: "/",
     maxAge: 1000 * 60 * 60 * 24 * 7,
   });
   const csrfToken = crypto.randomBytes(24).toString('hex');
   res.cookie('csrf_token', csrfToken, {
     httpOnly: false,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: true,
+    sameSite: 'none',
     path: '/',
     maxAge: 1000 * 60 * 60 * 24 * 7,
   });
@@ -40,9 +40,9 @@ const login = asyncHandler(async (req, res) => {
 
 const logout = asyncHandler(async (req, res) => {
   await supabase.auth.signOut();
-  res.clearCookie("access_token");
-  res.clearCookie("refresh_token");
-  res.clearCookie("csrf_token");
+  res.clearCookie("access_token", { path: "/", sameSite: "none", secure: true });
+  res.clearCookie("refresh_token", { path: "/", sameSite: "none", secure: true });
+  res.clearCookie("csrf_token", { path: "/", sameSite: "none", secure: true });
   res.json(successResponse({}, "Logout successful"));
 });
 
@@ -105,16 +105,16 @@ const refresh = asyncHandler(async (req, res) => {
 
     res.cookie("access_token", data.access_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: true,
+      sameSite: "none",
       path: "/",
       maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
     res.cookie("refresh_token", data.refresh_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: true,
+      sameSite: "none",
       path: "/",
       maxAge: 1000 * 60 * 60 * 24 * 7,
     });
@@ -122,17 +122,17 @@ const refresh = asyncHandler(async (req, res) => {
     const csrfToken = crypto.randomBytes(24).toString("hex");
     res.cookie("csrf_token", csrfToken, {
       httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: true,
+      sameSite: "none",
       path: "/",
       maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
     res.json(successResponse({ user: data.user }, "Token refreshed"));
   } catch (err) {
-    res.clearCookie("access_token");
-    res.clearCookie("refresh_token");
-    res.clearCookie("csrf_token");
+    res.clearCookie("access_token", { path: "/", sameSite: "none", secure: true });
+    res.clearCookie("refresh_token", { path: "/", sameSite: "none", secure: true });
+    res.clearCookie("csrf_token", { path: "/", sameSite: "none", secure: true });
     return res.status(500).json(errorResponse("Refresh failed", err.message, 500));
   }
 });
